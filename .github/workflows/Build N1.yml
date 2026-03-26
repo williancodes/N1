@@ -161,7 +161,7 @@ jobs:
        
     - name: Upload OpenWrt Firmware to Release
       uses: ncipollo/release-action@main
-      if: ${{ env.PACKAGED_STATUS == 'success' }} && !cancelled()
+      if: env.PACKAGED_STATUS == 'success' && !cancelled()
       with:
         tag: OpenWrt_N1_${{ env.PACKAGED_OUTPUTDATE }}
         artifacts: /opt/openwrt_packit/output/*

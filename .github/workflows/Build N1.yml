@@ -148,7 +148,7 @@ jobs:
         echo "compile_status=success" >> $GITHUB_ENV
 
     - name: Package OpenWrt Firmware
-      if: ${{ env.compile_status }} == 'success' && !cancelled()
+      if: env.compile_status == 'success' && !cancelled()
       uses: unifreq/openwrt_packit@master
       env:
         OPENWRT_ARMVIRT: openwrt/bin/targets/*/*/openwrt-amlogic-mesongx-phicomm_n1-rootfs.tar.gz

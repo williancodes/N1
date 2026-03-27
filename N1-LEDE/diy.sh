@@ -16,16 +16,12 @@ git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-t
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 git clone --depth=1 https://github.com/sirpdboy/luci-app-ddns-go package/ddnsgo
-#git clone --depth=1 https://github.com/sirpdboy/NetSpeedTest package/NetSpeedTest
 
-git clone --depth=1 https://github.com/sbwml/luci-app-mosdns package/mosdns
-git clone --depth=1 https://github.com/sbwml/luci-app-mosdns package/luci-app-mosdns
-git clone --depth 1 https://github.com/sbwml/luci-app-mosdns package/v2dat
+
+git clone --depth=1 https://github.com/sbwml/luci-app-mosdns package/mosdns-complete
+git clone --depth=1 https://github.com package/v2ray-geodata
 git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
-#添加自定义的软件包源
-#git_sparse_clone main https://github.com/kiddin9/kwrt-packages ddns-go
-#git_sparse_clone main https://github.com/kiddin9/kwrt-packages luci-app-ddns-go
-# Remove packages
+
 #删除lean库中的插件，使用自定义源中的包。
 rm -rf feeds/packages/net/v2ray-geodata
 rm -rf feeds/luci/themes/luci-theme-argon

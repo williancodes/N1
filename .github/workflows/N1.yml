@@ -122,9 +122,9 @@ jobs:
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_SH
 
-    # - name: SSH connect to Actions
-      # uses: P3TERX/ssh2actions@main
-      # if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
+    - name: SSH connect to Actions
+        uses: P3TERX/ssh2actions@main
+        if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
 
     - name: Download package
       working-directory: ./openwrt

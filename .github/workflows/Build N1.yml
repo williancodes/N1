@@ -16,8 +16,6 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-
-
     - name: Initialization environment
       env:
         DEBIAN_FRONTEND: noninteractive

@@ -16,6 +16,19 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
+
+
+    - name: Initialization environment
+      env:
+        DEBIAN_FRONTEND: noninteractive
+      run: |
+        sudo -E apt-get -qq update
+        # 注意：这里需要指定要安装的具体包名，curl 下载的内容必须配合 bash 或其他指令使用
+        sudo -E apt-get -qq install -y curl git bw
+        sudo -E apt-get -qq autoremove --purge
+        sudo -E apt-get -qq clean
+        sudo timedatectl set-timezone "Asia/Shanghai"
+       
     - name: Check machine configuration
       run: |
         echo "警告⚠"
@@ -183,16 +196,3 @@ jobs:
         keep_latest: 10
         delete_tags: true
 
-    - name: Initialization environment
-      env:
-        DEBIAN_FRONTEND: noninteractive
-      run: |
-        sudo -E apt-get -qq update
-        # 注意：这里需要指定要安装的具体包名，curl 下载的内容必须配合 bash 或其他指令使用
-        sudo -E apt-get -qq install -y curl git bw
-        sudo -E apt-get -qq autoremove --purge
-        sudo -E apt-get -qq clean
-        sudo timedatectl set-timezone "Asia/Shanghai"
-
-
-    

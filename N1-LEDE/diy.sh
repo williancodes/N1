@@ -19,7 +19,7 @@ rm -rf feeds/luci/applications/luci-app-mosdns
 
 # Add packages
 #添加科学上网源
-git clone --depth=1 https://github.com/vernesong/OpenClash/tree/v0.46.011-beta package/luci-app-openclash
+git clone --depth=1 --branch v0.46.011-beta https://github.com/vernesong/OpenClash package/openclash
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic

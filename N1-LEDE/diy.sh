@@ -17,9 +17,7 @@ git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-a
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 git clone --depth=1 https://github.com/sirpdboy/luci-app-ddns-go package/ddnsgo
 
-
-git clone --depth=1 https://github.com/sbwml/luci-app-mosdns package/mosdns-complete
-git clone --depth=1 https://github.com package/v2ray-geodata
+git clone --depth=1 https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
 git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
 
 #删除lean库中的插件，使用自定义源中的包。

@@ -9,6 +9,14 @@ function git_sparse_clone() {
   cd .. && rm -rf $repodir
 }
 
+# 删除lean库中的插件，使用自定义源中的包。
+rm -rf feeds/packages/net/v2ray-geodata
+rm -rf feeds/luci/themes/luci-theme-argon
+rm -rf feeds/luci/applications/luci-app-argon-config
+rm -rf feeds/packages/net/mosdns
+rm -rf feeds/packages/utils/v2dat
+rm -rf feeds/luci/applications/luci-app-mosdns
+
 # Add packages
 #添加科学上网源
 git clone --depth=1 https://github.com/vernesong/OpenClash/tree/v0.46.011-beta package/luci-app-openclash
@@ -17,16 +25,8 @@ git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-a
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 git clone --depth=1 https://github.com/sirpdboy/luci-app-ddns-go package/ddnsgo
 
-git clone --depth=1 https://github.com/sbwml/luci-app-mosdns -b v5 package/mosdns
+git clone --depth=1 https://github.com/sbwml/luci-app-mosdns package/mosdns
 git clone --depth=1 https://github.com/gdy666/luci-app-lucky.git package/lucky
-
-#删除lean库中的插件，使用自定义源中的包。
-rm -rf feeds/packages/net/v2ray-geodata
-rm -rf feeds/luci/themes/luci-theme-argon
-rm -rf feeds/luci/applications/luci-app-argon-config
-rm -rf feeds/packages/net/mosdns
-rm -rf feeds/packages/utils/v2dat
-rm -rf feeds/luci/applications/luci-app-mosdns
 
 
 # Default IP

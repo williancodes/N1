@@ -9,7 +9,6 @@ env:
   CONFIG_FILE: N1-LEDE/.config
   DIY_SH: N1-LEDE/diy.sh
   FILES: N1-LEDE/files
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
   TZ: Asia/Shanghai
 
 jobs:
@@ -99,12 +98,15 @@ jobs:
         cd openwrt
         # sed -i 's|https://github.com/coolsnowwolf/luci.git;openwrt-23.05|https://github.com/coolsnowwolf/luci|g' feeds.conf.default
 
-    - name: cache wrt build
-      uses: stupidloud/cachewrtbuild@main
+    - name: Cache ccache
+      uses: actions/cache@v4
       with:
-        ccache: 'true'
-        mixkey: amlogic-${{ env.REPO_BRANCH }}
-        prefix: ${{ github.workspace }}/openwrt
+        path: |
+          ~/.ccache
+          ${{ github.workspace }}/openwrt/.ccache
+        key: ${{ runner.os }}-ccache-amlogic-${{ env.REPO_BRANCH }}-${{ hashFiles('**/Makefile') }}
+        restore-keys: |
+          ${{ runner.os }}-ccache-amlogic-${{ env.REPO_BRANCH }}-
         
     - name: Update & Install feeds
       working-directory: ./openwrt

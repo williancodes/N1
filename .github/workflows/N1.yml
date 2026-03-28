@@ -19,53 +19,36 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Maximize Build Space
-      uses: easimon/maximize-build-space@master
-      with:
-        root-reserve-mb: 2048
-        swap-size-mb: 1
-        remove-dotnet: 'true'
-        remove-android: 'true'
-        remove-haskell: 'true'
-        remove-codeql: 'true'
-        remove-docker-images: 'true'
+    - name: Free Disk Space (Manual Clean)
+      run: |
+        # 手动删除根目录下不需要的巨型文件夹，为系统分区腾出空间
+        sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc /usr/local/share/boost /usr/lib/jvm
+        sudo docker image prune -a -f
+        # 此时根目录应该有 20-30GB 空间了，足够编译
+        df -hT
 
     - name: Checkout
       uses: actions/checkout@main
 
     - name: Setup Compilation Environment
       run: |
-        # 1. 使用 mount --bind 解决根目录空间不足且绕过 apt 安全限制
-        sudo mkdir -p ${{ github.workspace }}/tmp
-        sudo chmod 1777 ${{ github.workspace }}/tmp
-        
-        # 将大分区的 tmp 目录挂载到系统的 /tmp
-        sudo mount --bind ${{ github.workspace }}/tmp /tmp
-        
-        # 2. 迁移 Docker 目录（强制覆盖配置）
-        sudo systemctl stop docker
-        sudo mkdir -p ${{ github.workspace }}/docker
-        echo '{"data-root": "${{ github.workspace }}/docker"}' | sudo tee /etc/docker/daemon.json
-        sudo systemctl start docker
-        
-        # 3. 设置时区与权限
         sudo timedatectl set-timezone "$TZ"
+        # 确保工作目录权限正确
         sudo chown $USER:$(id -gn) $GITHUB_WORKSPACE
-        
-        echo "Disk space status (Check /tmp mount):"
-        df -hT
+        # 将一些缓存目录软链接到当前目录，减少根目录压力
+        mkdir -p ${{ github.workspace }}/.ccache
+        ln -s ${{ github.workspace }}/.ccache ~/.ccache
 
     - name: Initialize environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -qq
-        # 替换为常用的完整依赖安装脚本地址
-        sudo -E apt-get -y install $(curl -fsSL https://raw.githubusercontent.com)
-        sudo -E apt-get -y install libfuse-dev rename time gn
+        # 修正后的 Lean 源码编译标准依赖脚本 (针对 Ubuntu 22.04)
+        sudo -E apt-get -y install build-essential clang flex bison g++ gawk gcc-multilib g++-multilib gettext git libncurses5-dev libssl-dev python3-setuptools swig zlib1g-dev apktool antlr3 gperf wget curl rename
+        sudo -E apt-get -y install libfuse-dev time gn
         sudo -E apt-get -y autoremove --purge
         sudo -E apt-get clean
-
 
 
     - name: Clone source code

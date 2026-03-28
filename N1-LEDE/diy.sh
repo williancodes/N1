@@ -35,3 +35,19 @@ git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 
 # 5. 优化默认时间格式
 sed -i 's/os.date()/os.date("%Y-%m-%d %H:%M:%S %A")/g' $(find ./package/*/autocore/files/ -type f -name "index.htm" 2>/dev/null)
+
+
+# =========================================================
+# 修复 Lean 仓库因内核升级到 6.6.130 导致的 SFP 光模块 patch 冲突
+# 斐讯 N1 无 SFP 光口，直接物理删除相关冲突补丁即可无痛跳过
+# =========================================================
+echo ">> Fixing Kernel 6.6.130 sfp patch conflict..."
+
+# 删除具体的那个报错补丁
+rm -f target/linux/generic/backport-6.6/730-v6.7-net-sfp-re-implement-ignoring-the-hardware-TX_FAULT-.patch
+
+# 保险起见，把所有带 sfp 关键字的补丁一并删除（因为后续的 SFP 补丁也极有可能会连环报错）
+find target/linux/generic/ -name "*sfp*.patch" -type f -delete
+find target/linux/generic/ -name "*phy*.patch" -type f -name "*sfp*" -delete
+
+echo ">> Patch conflict fixed!"

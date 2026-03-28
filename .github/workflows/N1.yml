@@ -19,28 +19,9 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-    - name: Check machine configuration
-      run: |
-        echo "警告⚠"
-        echo "分配的服务器性能有限，若选择的插件过多，务必注意CPU性能！"
-        echo "云编译建议取消勾选Node.js及其相关插件！"
-        echo "已知CPU型号（降序）：7763,8370C,8272CL,8171M,E5系列"
-        echo "--------------------------CPU信息--------------------------"
-        echo "CPU物理数量:$(cat /proc/cpuinfo| grep "physical id"| sort| uniq| wc -l)"
-        echo -e "CPU核心及版本信息：$(cat /proc/cpuinfo | grep name | cut -f2 -d: | uniq -c) \n"
-        echo "--------------------------内存信息--------------------------"
-        echo "已安装内存详细信息："
-        sudo lshw -short -C memory | grep GiB
-        echo -e "\n"
-        echo "--------------------------硬盘信息--------------------------"
-        echo -e  "硬盘数量：$(ls /dev/sd* | grep -v [1-9] | wc -l) \n"
-        echo "硬盘详情："
-        df -Th
-        
-    - name: Maximize Build Space (The Only One Needed)
+    - name: Maximize Build Space
       uses: easimon/maximize-build-space@master
       with:
-        # 预留 5G 给根目录系统运行即可，剩下的全给编译分区
         root-reserve-mb: 5120
         swap-size-mb: 1
         remove-dotnet: 'true'
@@ -54,95 +35,70 @@ jobs:
 
     - name: Setup Compilation Environment
       run: |
-        # 1. 强制将编译时的临时目录重定向到拥有 100G+ 空间的分区
+        # 重定向临时目录到大分区
         sudo mkdir -p ${{ github.workspace }}/tmp
         sudo chmod 1777 ${{ github.workspace }}/tmp
         echo "TMPDIR=${{ github.workspace }}/tmp" >> $GITHUB_ENV
         
-        # 2. 如果你的编译过程涉及 Docker，需要把 Docker 根目录也迁过来
+        # 迁移 Docker 目录以防打包固件时爆磁盘
         sudo systemctl stop docker
         sudo mkdir -p ${{ github.workspace }}/docker
         sudo jq '. + {"data-root": "${{ github.workspace }}/docker"}' /etc/docker/daemon.json > /tmp/docker.json
         sudo mv /tmp/docker.json /etc/docker/daemon.json
         sudo systemctl start docker
         
-        echo "Disk check after setup:"
-        df -hT
- 
+        sudo timedatectl set-timezone "$TZ"
+        sudo chown $USER:$(id -gn) $GITHUB_WORKSPACE
+
     - name: Initialize environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -qq
+        # 使用 apt-get 避免 CLI 警告
         sudo -E apt-get -y install $(curl -fsSL https://is.gd/depends_ubuntu_2204)
+        sudo -E apt-get -y install libfuse-dev rename time gn
         sudo -E apt-get -y autoremove --purge
-        sudo -E apt-get -y install libfuse-dev
-        sudo -E apt-get -y install rename
-        sudo -E apt-get -y install time
-        sudo -E apt-get -y install gn
-        sudo -E systemctl daemon-reload
         sudo -E apt-get clean
-        sudo timedatectl set-timezone "$TZ"
-        sudo chown $USER:$GROUPS $GITHUB_WORKSPACE
 
     - name: Clone source code
-      working-directory: ./
       run: |
         git clone $REPO_URL -b $REPO_BRANCH openwrt
-        cd openwrt
-        # sed -i 's|https://github.com/coolsnowwolf/luci.git;openwrt-23.05|https://github.com/coolsnowwolf/luci|g' feeds.conf.default
 
-    - name: Cache ccache
-      uses: actions/cache@v4
-      with:
-        path: |
-          ~/.ccache
-          ${{ github.workspace }}/openwrt/.ccache
-        key: ${{ runner.os }}-ccache-amlogic-${{ env.REPO_BRANCH }}-${{ hashFiles('**/Makefile') }}
-        restore-keys: |
-          ${{ runner.os }}-ccache-amlogic-${{ env.REPO_BRANCH }}-
-        
     - name: Update & Install feeds
       working-directory: ./openwrt
       run: |
         ./scripts/feeds update -a
         ./scripts/feeds install -a
 
-    - name: Load custom config
+    - name: Load custom config & Disable Node.js
       run: |
         [ -e $FILES ] && mv $FILES openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_SH
         cd openwrt
         $GITHUB_WORKSPACE/$DIY_SH
-
-   # - name: SSH connect to Actions
-   #   uses: P3TERX/ssh2actions@main
-   #   if: (github.event.inputs.ssh == 'true') || contains(github.event.action, 'ssh')
+        
+        # 关键修正：强制禁用 Node.js 及其所有相关插件，释放空间和CPU压力
+        sed -i 's/CONFIG_PACKAGE_node=y/# CONFIG_PACKAGE_node is not set/' .config
+        sed -i 's/CONFIG_PACKAGE_node-.*=y/# CONFIG_PACKAGE_node-.* is not set/' .config
+        sed -i '/node/d' .config # 进一步清理包含 node 的行
+        
+        # 重新应用 defconfig 以确保配置一致性
+        make defconfig
 
     - name: Download package
       working-directory: ./openwrt
       run: |
-        make defconfig
         make download -j8
-        find dl -size -1024c -exec ls -l {} \;
         find dl -size -1024c -exec rm -f {} \;
 
-    - name: Cleanup Disk Space
-      run: |
-        sudo rm -rf /usr/share/dotnet
-        sudo rm -rf /usr/local/lib/android
-        sudo rm -rf /opt/ghc
-        sudo rm -rf /usr/local/share/boost
-        sudo docker image prune -a -f
-        df -h
-
     - name: Compile the firmware
+      working-directory: ./openwrt
       run: |
-        chmod -R 755 openwrt
-        cd openwrt
         echo -e "$(nproc) thread compile"
-        make -j$(nproc) || make -j1 || make -j1 V=s
+        # 记录编译耗时
+        time make -j$(nproc) || time make -j1 V=s
         echo "compile_status=success" >> $GITHUB_ENV
 
     - name: Package OpenWrt Firmware
@@ -152,7 +108,6 @@ jobs:
         OPENWRT_ARMVIRT: openwrt/bin/targets/*/*/openwrt-amlogic-mesongx-phicomm_n1-rootfs.tar.gz
         KERNEL_REPO_URL: breakings/OpenWrt
         KERNEL_VERSION_NAME: 5.15.148
-        # 必须设置为 false，否则脚本会去抓取最新的内核覆盖掉 5.15.148
         KERNEL_AUTO_LATEST: false
         PACKAGE_SOC: s905d
         WHOAMI: fightroad
@@ -168,18 +123,15 @@ jobs:
         allowUpdates: true
         token: ${{ secrets.GITHUB_TOKEN }}
         body: |
-          基于lean openwrt构建
-          首次使用建议全新刷写
-          * 基本信息
-          IP: 192.168.2.2
-          账户: root
-          密码: password
+          基于 Lean OpenWrt 构建 (N1)
+          内核版本: 5.15.148 (breakings)
+          默认 IP: 192.168.2.2 / password
         
     - name: Delete old releases
       uses: dev-drprasad/delete-older-releases@master
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      if: env.PACKAGED_STATUS == 'success' && !cancelled()
       with:
         keep_latest: 10
         delete_tags: true
-
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

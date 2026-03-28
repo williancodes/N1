@@ -73,19 +73,15 @@ jobs:
         $GITHUB_WORKSPACE/$DIY_SH
         
         # 3. 补全配置并强制剔除 Node.js
-        # 第一次补全，确定所有插件依赖
         make defconfig
         
-        # 深度剔除：删除所有包含 node/Node/NODE 的配置行
+        # 深度剔除 Node.js
         sed -i '/[Nn][Oo][Dd][Ee]/d' .config
-        
-        # 显式声明禁用，防止依赖关系自动回填
         echo "CONFIG_PACKAGE_node=n" >> .config
         echo "CONFIG_PACKAGE_node-npm=n" >> .config
         
-        # 第二次补全，刷新依赖树（此时依赖 Node.js 的功能会被自动取消）
+        # 4. 第二次补全，强制刷新我们的精简依赖树
         make defconfig
-
 
 
     - name: Download package

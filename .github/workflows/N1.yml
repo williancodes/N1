@@ -37,30 +37,11 @@ jobs:
         echo "硬盘详情："
         df -Th
         
-    - name: Before freeing up disk space
-      run: |
-        echo "Before freeing up disk space"
-        echo "=============================================================================="
-        df -hT
-        echo "=============================================================================="
-        
-    - name: Free Disk Space (Ubuntu)
-      uses: jlumbroso/free-disk-space@main
-      with:
-        # 这里的配置更符合 OpenWrt 编译需求
-        tool-cache: true
-        android: true
-        dotnet: true
-        haskell: true
-        large-packages: true
-        docker-images: true
-        swap-storage: true
-
-
-    - name: Freeing up disk space
+    - name: Maximize Build Space (The Only One Needed)
       uses: easimon/maximize-build-space@master
-      with: 
-        root-reserve-mb: 10240
+      with:
+        # 预留 5G 给根目录系统运行即可，剩下的全给编译分区
+        root-reserve-mb: 5120
         swap-size-mb: 1
         remove-dotnet: 'true'
         remove-android: 'true'
@@ -68,16 +49,26 @@ jobs:
         remove-codeql: 'true'
         remove-docker-images: 'true'
 
-    - name: Free up disk space complete
-      run: |
-        echo "Free up disk space complete"
-        echo "=============================================================================="
-        df -hT
-        echo "=============================================================================="
-        
     - name: Checkout
       uses: actions/checkout@main
-      
+
+    - name: Setup Compilation Environment
+      run: |
+        # 1. 强制将编译时的临时目录重定向到拥有 100G+ 空间的分区
+        sudo mkdir -p ${{ github.workspace }}/tmp
+        sudo chmod 1777 ${{ github.workspace }}/tmp
+        echo "TMPDIR=${{ github.workspace }}/tmp" >> $GITHUB_ENV
+        
+        # 2. 如果你的编译过程涉及 Docker，需要把 Docker 根目录也迁过来
+        sudo systemctl stop docker
+        sudo mkdir -p ${{ github.workspace }}/docker
+        sudo jq '. + {"data-root": "${{ github.workspace }}/docker"}' /etc/docker/daemon.json > /tmp/docker.json
+        sudo mv /tmp/docker.json /etc/docker/daemon.json
+        sudo systemctl start docker
+        
+        echo "Disk check after setup:"
+        df -hT
+ 
     - name: Initialize environment
       env:
         DEBIAN_FRONTEND: noninteractive

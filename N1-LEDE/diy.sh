@@ -10,7 +10,7 @@ function git_sparse_clone() {
 }
 
 # 删除lean库中的插件，使用自定义源中的包。
-
+rm -rf package/openclash
 rm -rf feeds/luci/themes/luci-theme-argon
 rm -rf feeds/luci/applications/luci-app-argon-config
 

@@ -35,27 +35,26 @@ jobs:
 
     - name: Setup Compilation Environment
       run: |
-        # 1. 重定向临时目录
+        # 1. 彻底解决根目录空间不足：将系统级临时目录链接到大分区
         sudo mkdir -p ${{ github.workspace }}/tmp
         sudo chmod 1777 ${{ github.workspace }}/tmp
-        echo "TMPDIR=${{ github.workspace }}/tmp" >> $GITHUB_ENV
+        # 使用软链接替代环境变量，确保所有底层工具都写到大分区
+        sudo rm -rf /tmp
+        sudo ln -s ${{ github.workspace }}/tmp /tmp
         
-        # 2. 迁移 Docker 目录（修正版）
+        # 2. 迁移 Docker 目录（跳过配置读取，直接强制覆盖）
         sudo systemctl stop docker
         sudo mkdir -p ${{ github.workspace }}/docker
-        
-        # 如果文件不存在，则直接写入新配置；如果存在，则用 jq 合并
-        if [ ! -f /etc/docker/daemon.json ]; then
-          echo '{"data-root": "${{ github.workspace }}/docker"}' | sudo tee /etc/docker/daemon.json
-        else
-          sudo jq '. + {"data-root": "${{ github.workspace }}/docker"}' /etc/docker/daemon.json > /tmp/docker.json
-          sudo mv /tmp/docker.json /etc/docker/daemon.json
-        fi
-        
+        # 直接创建新配置，避免使用 jq 读取可能不存在的文件
+        echo '{"data-root": "${{ github.workspace }}/docker"}' | sudo tee /etc/docker/daemon.json
         sudo systemctl start docker
         
+        # 3. 设置时区与权限
         sudo timedatectl set-timezone "$TZ"
         sudo chown $USER:$(id -gn) $GITHUB_WORKSPACE
+        
+        echo "Check Space again:"
+        df -hT
 
 
     - name: Initialize environment

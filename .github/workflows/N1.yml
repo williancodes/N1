@@ -11,6 +11,9 @@ env:
   FILES: N1-LEDE/files
   TZ: Asia/Shanghai
 
+permissions:
+  contents: write
+
 jobs:
   build:
     runs-on: ubuntu-22.04

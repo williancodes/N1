@@ -80,19 +80,29 @@ jobs:
 
     - name: Load custom config & Disable Node.js
       run: |
+        # 1. 移动自定义文件和配置文件
         [ -e $FILES ] && mv $FILES openwrt/files
         [ -e $CONFIG_FILE ] && mv $CONFIG_FILE openwrt/.config
         chmod +x $DIY_SH
+        
         cd openwrt
+        # 执行你的 DIY 脚本
         $GITHUB_WORKSPACE/$DIY_SH
         
-        # 关键修正：强制禁用 Node.js 及其所有相关插件，释放空间和CPU压力
-        sed -i 's/CONFIG_PACKAGE_node=y/# CONFIG_PACKAGE_node is not set/' .config
-        sed -i 's/CONFIG_PACKAGE_node-.*=y/# CONFIG_PACKAGE_node-.* is not set/' .config
-        sed -i '/node/d' .config # 进一步清理包含 node 的行
-        
-        # 重新应用 defconfig 以确保配置一致性
+        # 2. 第一次补全配置：将你的 .config 扩展为完整的配置列表
         make defconfig
+        
+        # 3. 关键修正：深度剔除 Node.js 及其关联插件
+        # 禁用主程序并删除所有包含 node 的配置行（忽略大小写）
+        sed -i '/[Nn][Oo][Dd][Ee]/d' .config
+        
+        # 显式添加禁用声明，防止被依赖自动勾选
+        echo "CONFIG_PACKAGE_node=n" >> .config
+        echo "CONFIG_PACKAGE_node-npm=n" >> .config
+        
+        # 4. 第二次补全配置：刷新依赖关系，确保 Node.js 相关的插件也被自动取消
+        make defconfig
+
 
     - name: Download package
       working-directory: ./openwrt

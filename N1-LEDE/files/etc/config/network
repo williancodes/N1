@@ -1,4 +1,3 @@
-
 config interface 'loopback'
 	option ifname 'lo'
 	option proto 'static'
@@ -9,24 +8,13 @@ config globals 'globals'
 	option packet_steering '1'
 
 config interface 'lan'
-    option proto 'static'
-    option netmask '255.255.255.0'
-    option ipaddr '192.168.2.2'
-    option gateway '192.168.2.1'
-    option delegate '0'
-    option type 'bridge'
-    option ifname 'eth0'
-
-config device
 	option type 'bridge'
-	option name 'docker0'
+	option ifname 'eth0'
+	option proto 'static'
+	option netmask '255.255.255.0'
+	option ipaddr '10.0.0.2'
+	option gateway '10.0.0.1'
+	list dns '10.0.0.1'
+	option delegate '0'
 
-
-config interface 'docker'
-	option ifname 'docker0'
-	option proto 'none'
-	option auto '0'
-
-config interface 'vpn0'
-	option ifname 'tun0'
-	option proto 'none'
+# N1作为旁路由，关闭 IPv6 后无需配置其他复杂 interface

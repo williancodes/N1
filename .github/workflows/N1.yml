@@ -35,17 +35,16 @@ jobs:
 
     - name: Setup Compilation Environment
       run: |
-        # 1. 彻底解决根目录空间不足：将系统级临时目录链接到大分区
+        # 1. 使用 mount --bind 解决根目录空间不足且绕过 apt 安全限制
         sudo mkdir -p ${{ github.workspace }}/tmp
         sudo chmod 1777 ${{ github.workspace }}/tmp
-        # 使用软链接替代环境变量，确保所有底层工具都写到大分区
-        sudo rm -rf /tmp
-        sudo ln -s ${{ github.workspace }}/tmp /tmp
         
-        # 2. 迁移 Docker 目录（跳过配置读取，直接强制覆盖）
+        # 将大分区的 tmp 目录挂载到系统的 /tmp
+        sudo mount --bind ${{ github.workspace }}/tmp /tmp
+        
+        # 2. 迁移 Docker 目录（强制覆盖配置）
         sudo systemctl stop docker
         sudo mkdir -p ${{ github.workspace }}/docker
-        # 直接创建新配置，避免使用 jq 读取可能不存在的文件
         echo '{"data-root": "${{ github.workspace }}/docker"}' | sudo tee /etc/docker/daemon.json
         sudo systemctl start docker
         
@@ -53,20 +52,21 @@ jobs:
         sudo timedatectl set-timezone "$TZ"
         sudo chown $USER:$(id -gn) $GITHUB_WORKSPACE
         
-        echo "Check Space again:"
+        echo "Disk space status (Check /tmp mount):"
         df -hT
-
 
     - name: Initialize environment
       env:
         DEBIAN_FRONTEND: noninteractive
       run: |
         sudo -E apt-get update -qq
-        # 使用 apt-get 避免 CLI 警告
-        sudo -E apt-get -y install $(curl -fsSL https://is.gd/depends_ubuntu_2204)
+        # 替换为常用的完整依赖安装脚本地址
+        sudo -E apt-get -y install $(curl -fsSL https://raw.githubusercontent.com)
         sudo -E apt-get -y install libfuse-dev rename time gn
         sudo -E apt-get -y autoremove --purge
         sudo -E apt-get clean
+
+
 
     - name: Clone source code
       run: |

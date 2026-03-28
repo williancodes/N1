@@ -35,20 +35,28 @@ jobs:
 
     - name: Setup Compilation Environment
       run: |
-        # 重定向临时目录到大分区
+        # 1. 重定向临时目录
         sudo mkdir -p ${{ github.workspace }}/tmp
         sudo chmod 1777 ${{ github.workspace }}/tmp
         echo "TMPDIR=${{ github.workspace }}/tmp" >> $GITHUB_ENV
         
-        # 迁移 Docker 目录以防打包固件时爆磁盘
+        # 2. 迁移 Docker 目录（修正版）
         sudo systemctl stop docker
         sudo mkdir -p ${{ github.workspace }}/docker
-        sudo jq '. + {"data-root": "${{ github.workspace }}/docker"}' /etc/docker/daemon.json > /tmp/docker.json
-        sudo mv /tmp/docker.json /etc/docker/daemon.json
+        
+        # 如果文件不存在，则直接写入新配置；如果存在，则用 jq 合并
+        if [ ! -f /etc/docker/daemon.json ]; then
+          echo '{"data-root": "${{ github.workspace }}/docker"}' | sudo tee /etc/docker/daemon.json
+        else
+          sudo jq '. + {"data-root": "${{ github.workspace }}/docker"}' /etc/docker/daemon.json > /tmp/docker.json
+          sudo mv /tmp/docker.json /etc/docker/daemon.json
+        fi
+        
         sudo systemctl start docker
         
         sudo timedatectl set-timezone "$TZ"
         sudo chown $USER:$(id -gn) $GITHUB_WORKSPACE
+
 
     - name: Initialize environment
       env:

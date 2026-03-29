@@ -8,7 +8,7 @@
 # =========================================================
 echo ">> Synchronizing feeds to match 2023-06-09 base code..."
 for feed_dir in feeds/*; do
-    if[ -d "$feed_dir/.git" ]; then
+    if [ -d "$feed_dir/.git" ]; then
         cd "$feed_dir"
         echo "Fetching full history for $feed_dir..."
         git fetch --unshallow 2>/dev/null || git fetch --all

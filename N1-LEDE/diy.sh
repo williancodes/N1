@@ -3,8 +3,39 @@
 # Description: N1-LEDE DIY Script (Targeting Lean Tag 20230609)
 # =========================================================
 
-# 1. 物理删除不需要的默认组件 (保持旁路由极致精简)
+# =========================================================
+# 0. "时光机"：同步降级所有 Feeds 到 2023年6月9日 (核心护城河)
+# =========================================================
+# 彻底解决 2023年主源码库 与 2026年最新插件库(拉取了Rust等未来依赖) 的缝合怪冲突
+echo ">> Synchronizing feeds to match 2023-06-09 base code..."
+for feed_dir in feeds/*; do
+    if [ -d "$feed_dir/.git" ]; then
+        cd "$feed_dir"
+        echo "Fetching full history for $feed_dir..."
+        # 补全 github action 的浅克隆历史
+        git fetch --unshallow 2>/dev/null || git fetch --all
+        # 寻找 2023年6月10日 之前的最后一个 commit 节点
+        target_commit=$(git rev-list -n 1 --before="2023-06-10 00:00:00" HEAD)
+        if [ -n "$target_commit" ]; then
+            echo "Rewinding $feed_dir to commit $target_commit..."
+            # 强制回退到该历史节点
+            git checkout -b stable_2023 "$target_commit"
+        fi
+        cd ../..
+    fi
+done
+
+# 极其重要：重新生成并安装旧版依赖树，覆盖掉刚才 Action 默认装的未来版本包
+./scripts/feeds install -a
+
+# =========================================================
+# 1. 物理删除不需要的组件与引发警告的历史遗留包
+# =========================================================
 echo ">> Removing unwanted packages..."
+# 彻底干掉整个 telephony(网络电话) 目录，一劳永逸解决 freeswitch, spandsp3, baresip 等报错
+rm -rf feeds/telephony
+
+# 物理删除不需要的网络代理插件，防止被依赖链无意中拉起
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf feeds/packages/net/passwall
 rm -rf feeds/luci/applications/luci-app-ssr-plus
@@ -13,16 +44,11 @@ rm -rf feeds/luci/applications/luci-app-bypass
 rm -rf feeds/luci/themes/luci-theme-argon
 rm -rf feeds/luci/applications/luci-app-argon-config
 
-# 2. 修复 Lean 20230609 版本中 baresip 的递归依赖报错 (致命错误)
-# N1 旁路由无需 VoIP(网络电话) 功能，直接物理断根，防止 make defconfig 死循环
-echo ">> Fixing recursive dependency for baresip..."
-find feeds/ -name "baresip" -type d -exec rm -rf {} +
-
-# 3. 修改默认 IP 为 10.0.0.2
+# 2. 修改默认 IP 为 10.0.0.2 (旁路由网关、DNS 预设已在 files 中搞定)
 echo ">> Setting default IP to 10.0.0.2..."
 sed -i 's/192.168.1.1/10.0.0.2/g' package/base-files/files/bin/config_generate
 
-# 4. 安装指定版本的 OpenClash (v0.46.011-beta)
+# 3. 安装指定版本的 OpenClash (v0.46.011-beta)
 echo ">> Installing OpenClash v0.46.011-beta..."
 rm -rf package/luci-app-openclash
 git clone --depth=1 --branch v0.46.011-beta https://github.com/vernesong/OpenClash.git /tmp/OpenClash
@@ -30,28 +56,24 @@ cp -rf /tmp/OpenClash/luci-app-openclash package/luci-app-openclash
 rm -rf /tmp/OpenClash
 
 # =========================================================
-# 5. 企业级防断网下载：预置 OpenClash ARM64 Meta & Dev 内核
+# 4. 企业级防断网下载：预置 OpenClash ARM64 Meta & Dev 内核
 # =========================================================
 echo ">> Downloading and pre-installing OpenClash Cores..."
 CORE_DIR="package/base-files/files/etc/openclash/core"
 mkdir -p $CORE_DIR
 
-# 封装健壮的下载函数：包含镜像加速、格式校验和失败回退机制
 download_core() {
     local url=$1
     local dest=$2
-    
     echo "Downloading core from ghproxy mirror..."
-    # 尝试使用 ghproxy 镜像加速下载 (加上重试和超时限制)
+    # 尝试镜像站下载
     curl -sL --retry 3 --connect-timeout 10 "https://mirror.ghproxy.com/$url" -o /tmp/clash.tar.gz
-    
-    # 防御性编程：验证文件是否存在、大小是否大于0，以及是否为合法压缩包
-    if [ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
+    # 如果镜像站下载失败、文件为空，或者根本不是合法的压缩包，则回退官方原地址
+    if[ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         echo "Mirror failed or file corrupted, falling back to original GitHub URL..."
         curl -sL --retry 3 --connect-timeout 10 "$url" -o /tmp/clash.tar.gz
     fi
-    
-    # 确保成功后才执行解压，避免报错
+    # 最终的安全解压部署
     if tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         tar -xzf /tmp/clash.tar.gz -C /tmp/
         mv /tmp/clash $dest
@@ -62,7 +84,7 @@ download_core() {
     fi
 }
 
-# 依次下载 Meta 与 Dev 内核
+# N1 为 ARM64 架构，拉取专属核心
 download_core "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/meta/clash-linux-arm64.tar.gz" "$CORE_DIR/clash_meta"
 download_core "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/dev/clash-linux-arm64.tar.gz" "$CORE_DIR/clash"
 
@@ -71,11 +93,11 @@ chmod +x $CORE_DIR/clash_meta
 chmod +x $CORE_DIR/clash
 echo ">> OpenClash Cores processing finished!"
 
-# 6. 安装必需的主题与 Amlogic 插件
+# 5. 安装必需的主题与 Amlogic 插件
 echo ">> Installing Themes and amlogic..."
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 
-# 7. 修复旧版 Argon 主题时间的默认格式显示问题
+# 6. 修复旧版 Argon 主题时间的默认格式显示问题
 sed -i 's/os.date()/os.date("%Y-%m-%d %H:%M:%S %A")/g' $(find ./package/*/autocore/files/ -type f -name "index.htm" 2>/dev/null)

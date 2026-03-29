@@ -68,7 +68,7 @@ download_core() {
     curl -sL --retry 3 --connect-timeout 10 "https://mirror.ghproxy.com/$url" -o /tmp/clash.tar.gz
     
     # ！！！注意：这里同样确保了有空格 ！！！
-    if[ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
+    if [ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         echo "Mirror failed or file corrupted, falling back to original GitHub URL..."
         curl -sL --retry 3 --connect-timeout 10 "$url" -o /tmp/clash.tar.gz
     fi

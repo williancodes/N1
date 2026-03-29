@@ -6,36 +6,29 @@
 # =========================================================
 # 0. "时光机"：同步降级所有 Feeds 到 2023年6月9日 (核心护城河)
 # =========================================================
-# 彻底解决 2023年主源码库 与 2026年最新插件库(拉取了Rust等未来依赖) 的缝合怪冲突
 echo ">> Synchronizing feeds to match 2023-06-09 base code..."
 for feed_dir in feeds/*; do
     if [ -d "$feed_dir/.git" ]; then
         cd "$feed_dir"
         echo "Fetching full history for $feed_dir..."
-        # 补全 github action 的浅克隆历史
         git fetch --unshallow 2>/dev/null || git fetch --all
-        # 寻找 2023年6月10日 之前的最后一个 commit 节点
         target_commit=$(git rev-list -n 1 --before="2023-06-10 00:00:00" HEAD)
-        if [ -n "$target_commit" ]; then
+        if[ -n "$target_commit" ]; then
             echo "Rewinding $feed_dir to commit $target_commit..."
-            # 强制回退到该历史节点
             git checkout -b stable_2023 "$target_commit"
         fi
         cd ../..
     fi
 done
 
-# 极其重要：重新生成并安装旧版依赖树，覆盖掉刚才 Action 默认装的未来版本包
+# 重新安装降级后的依赖树 (极其重要)
 ./scripts/feeds install -a
 
 # =========================================================
 # 1. 物理删除不需要的组件与引发警告的历史遗留包
 # =========================================================
 echo ">> Removing unwanted packages..."
-# 彻底干掉整个 telephony(网络电话) 目录，一劳永逸解决 freeswitch, spandsp3, baresip 等报错
 rm -rf feeds/telephony
-
-# 物理删除不需要的网络代理插件，防止被依赖链无意中拉起
 rm -rf feeds/luci/applications/luci-app-passwall
 rm -rf feeds/packages/net/passwall
 rm -rf feeds/luci/applications/luci-app-ssr-plus
@@ -44,11 +37,15 @@ rm -rf feeds/luci/applications/luci-app-bypass
 rm -rf feeds/luci/themes/luci-theme-argon
 rm -rf feeds/luci/applications/luci-app-argon-config
 
-# 2. 修改默认 IP 为 10.0.0.2 (旁路由网关、DNS 预设已在 files 中搞定)
+# =========================================================
+# 2. 修改默认 IP 为 10.0.0.2
+# =========================================================
 echo ">> Setting default IP to 10.0.0.2..."
 sed -i 's/192.168.1.1/10.0.0.2/g' package/base-files/files/bin/config_generate
 
+# =========================================================
 # 3. 安装指定版本的 OpenClash (v0.46.011-beta)
+# =========================================================
 echo ">> Installing OpenClash v0.46.011-beta..."
 rm -rf package/luci-app-openclash
 git clone --depth=1 --branch v0.46.011-beta https://github.com/vernesong/OpenClash.git /tmp/OpenClash
@@ -66,14 +63,15 @@ download_core() {
     local url=$1
     local dest=$2
     echo "Downloading core from ghproxy mirror..."
-    # 尝试镜像站下载
     curl -sL --retry 3 --connect-timeout 10 "https://mirror.ghproxy.com/$url" -o /tmp/clash.tar.gz
-    # 如果镜像站下载失败、文件为空，或者根本不是合法的压缩包，则回退官方原地址
+    
+    # ！！！注意这里的 if [ 空格，这个就是刚才引发报错的元凶 ！！！
     if[ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         echo "Mirror failed or file corrupted, falling back to original GitHub URL..."
         curl -sL --retry 3 --connect-timeout 10 "$url" -o /tmp/clash.tar.gz
     fi
-    # 最终的安全解压部署
+    
+    # 再次安全校验并解压
     if tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         tar -xzf /tmp/clash.tar.gz -C /tmp/
         mv /tmp/clash $dest
@@ -93,11 +91,15 @@ chmod +x $CORE_DIR/clash_meta
 chmod +x $CORE_DIR/clash
 echo ">> OpenClash Cores processing finished!"
 
+# =========================================================
 # 5. 安装必需的主题与 Amlogic 插件
+# =========================================================
 echo ">> Installing Themes and amlogic..."
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-theme-argon package/luci-theme-argon
 git clone -b 18.06 --single-branch --depth 1 https://github.com/jerrykuku/luci-app-argon-config package/luci-app-argon-config
 git clone --depth=1 https://github.com/ophub/luci-app-amlogic package/amlogic
 
+# =========================================================
 # 6. 修复旧版 Argon 主题时间的默认格式显示问题
+# =========================================================
 sed -i 's/os.date()/os.date("%Y-%m-%d %H:%M:%S %A")/g' $(find ./package/*/autocore/files/ -type f -name "index.htm" 2>/dev/null)

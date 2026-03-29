@@ -8,12 +8,14 @@
 # =========================================================
 echo ">> Synchronizing feeds to match 2023-06-09 base code..."
 for feed_dir in feeds/*; do
-    if [ -d "$feed_dir/.git" ]; then
+    if[ -d "$feed_dir/.git" ]; then
         cd "$feed_dir"
         echo "Fetching full history for $feed_dir..."
         git fetch --unshallow 2>/dev/null || git fetch --all
         target_commit=$(git rev-list -n 1 --before="2023-06-10 00:00:00" HEAD)
-        if[ -n "$target_commit" ]; then
+        
+        # ！！！注意：这里已经加上了至关重要的空格 ！！！
+        if [ -n "$target_commit" ]; then
             echo "Rewinding $feed_dir to commit $target_commit..."
             git checkout -b stable_2023 "$target_commit"
         fi
@@ -57,7 +59,7 @@ rm -rf /tmp/OpenClash
 # =========================================================
 echo ">> Downloading and pre-installing OpenClash Cores..."
 CORE_DIR="package/base-files/files/etc/openclash/core"
-mkdir -p $CORE_DIR
+mkdir -p "$CORE_DIR"
 
 download_core() {
     local url=$1
@@ -65,7 +67,7 @@ download_core() {
     echo "Downloading core from ghproxy mirror..."
     curl -sL --retry 3 --connect-timeout 10 "https://mirror.ghproxy.com/$url" -o /tmp/clash.tar.gz
     
-    # ！！！注意这里的 if [ 空格，这个就是刚才引发报错的元凶 ！！！
+    # ！！！注意：这里同样确保了有空格 ！！！
     if[ ! -s /tmp/clash.tar.gz ] || ! tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         echo "Mirror failed or file corrupted, falling back to original GitHub URL..."
         curl -sL --retry 3 --connect-timeout 10 "$url" -o /tmp/clash.tar.gz
@@ -74,7 +76,7 @@ download_core() {
     # 再次安全校验并解压
     if tar -tzf /tmp/clash.tar.gz >/dev/null 2>&1; then
         tar -xzf /tmp/clash.tar.gz -C /tmp/
-        mv /tmp/clash $dest
+        mv /tmp/clash "$dest"
         rm -f /tmp/clash.tar.gz
         echo "Core installed: $dest"
     else
@@ -87,8 +89,8 @@ download_core "https://raw.githubusercontent.com/vernesong/OpenClash/core/master
 download_core "https://raw.githubusercontent.com/vernesong/OpenClash/core/master/dev/clash-linux-arm64.tar.gz" "$CORE_DIR/clash"
 
 # 赋予内核可执行权限 (非常重要，否则开机无法启动)
-chmod +x $CORE_DIR/clash_meta
-chmod +x $CORE_DIR/clash
+chmod +x "$CORE_DIR/clash_meta"
+chmod +x "$CORE_DIR/clash"
 echo ">> OpenClash Cores processing finished!"
 
 # =========================================================

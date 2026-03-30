@@ -109,18 +109,15 @@ jobs:
       if: env.compile_status == 'success' && !cancelled()
       uses: unifreq/openwrt_packit@master
       env:
-        # 1. 精准捕获 LEDE 在 20230609 版本生成的 ARM 64位底包
-        OPENWRT_ARMVIRT: openwrt/bin/targets/*/*/openwrt-armvirt-64-default-rootfs.tar.gz
+        # 【最终真理】完全匹配“透视眼”探测到的真实文件名 (generic)
+        OPENWRT_ARMVIRT: openwrt/bin/targets/*/*/openwrt-armvirt-64-generic-rootfs.tar.gz
         
-        # 2. 内核下载源设定
+        # 内核下载源与标签设定 (确保去 kernel_stable 下载 5.15)
         KERNEL_REPO_URL: breakings/OpenWrt
         KERNEL_VERSION_NAME: 5.15.148
-        
-        # 3. 极其关键：指导脚本去 kernel_stable 标签下提取已编译的内核包
         KERNEL_TAGS: kernel_stable
         KERNEL_AUTO_LATEST: false
         
-        # 4. 指定目标设备为 N1 (Amlogic S905D 芯片)
         PACKAGE_SOC: s905d
         WHOAMI: fightroad
         SW_FLOWOFFLOAD: 1

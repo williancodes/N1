@@ -45,15 +45,42 @@ rm -rf feeds/packages/net/vlmcsd
 rm -rf feeds/luci/applications/luci-app-wol
 rm -rf feeds/packages/net/wol
 
-# =========================================================
-# 【新增】系统细节深度优化 (版本号、OPKG软件源)
-# =========================================================
-echo ">> Optimizing system details..."
-# 1. 还原真实的编译版本号为 2023.06.09 (修改 Lean 的动态版本脚本)
-sed -i 's/R$(date +%Y.%m.%d)/R2023.06.09/g' package/lean/default-settings/files/zzz-default-settings
 
-# 2. 将失效的腾讯云 (Tencent) OPKG 软件源一键替换为中科大 (USTC) 官方镜像源
-sed -i 's/mirrors.cloud.tencent.com\/lede/mirrors.ustc.edu.cn\/openwrt/g' package/lean/default-settings/files/zzz-default-settings
+# =========================================================
+# 【修复与深度定制】系统版本号与 OPKG 官方源强力注入
+# =========================================================
+echo ">> Injecting custom OPKG feeds and Version info..."
+
+# 1. 找到初始化脚本的路径
+ZZZ_PATH="package/lean/default-settings/files/zzz-default-settings"
+
+# 2. 移除原脚本末尾的 exit 0，以便我们追加代码
+sed -i '/exit 0/d' "$ZZZ_PATH"
+
+# 3. 追加我们的自定义开机执行逻辑 (直接使用你抓取到的官方源)
+cat << "EOF" >> "$ZZZ_PATH"
+
+# 强制修正版本号显示
+sed -i "s/DISTRIB_REVISION=.*/DISTRIB_REVISION='R2023.06.09'/g" /etc/openwrt_release
+
+# 强制清空并写入官方的 OPKG 软件源
+cat << "OPKG" > /etc/opkg/distfeeds.conf
+src/gz openwrt_core https://downloads.openwrt.org/snapshots/targets/armsr/armv8/packages/
+src/gz openwrt_base https://downloads.openwrt.org/snapshots/packages/aarch64_generic/base/
+src/gz openwrt_luci https://downloads.openwrt.org/snapshots/packages/aarch64_generic/luci/
+src/gz openwrt_packages https://downloads.openwrt.org/snapshots/packages/aarch64_generic/packages/
+src/gz openwrt_routing https://downloads.openwrt.org/snapshots/packages/aarch64_generic/routing/
+src/gz openwrt_telephony https://downloads.openwrt.org/snapshots/packages/aarch64_generic/telephony/
+OPKG
+
+# 优雅地结束脚本
+exit 0
+EOF
+
+echo ">> System details optimized successfully!"
+
+# (注：之前那句画蛇添足的 sed -i 's/os.date()/... 已经被彻底删除了，Web 界面将恢复正常！)
+
 
 
 # =========================================================

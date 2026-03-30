@@ -39,6 +39,23 @@ rm -rf feeds/luci/applications/luci-app-bypass
 rm -rf feeds/luci/themes/luci-theme-argon
 rm -rf feeds/luci/applications/luci-app-argon-config
 
+# 【新增】物理断根 KMS(vlmcsd) 和 网络唤醒(wol)，防止被默认依赖拉起
+rm -rf feeds/luci/applications/luci-app-vlmcsd
+rm -rf feeds/packages/net/vlmcsd
+rm -rf feeds/luci/applications/luci-app-wol
+rm -rf feeds/packages/net/wol
+
+# =========================================================
+# 【新增】系统细节深度优化 (版本号、OPKG软件源)
+# =========================================================
+echo ">> Optimizing system details..."
+# 1. 还原真实的编译版本号为 2023.06.09 (修改 Lean 的动态版本脚本)
+sed -i 's/R$(date +%Y.%m.%d)/R2023.06.09/g' package/lean/default-settings/files/zzz-default-settings
+
+# 2. 将失效的腾讯云 (Tencent) OPKG 软件源一键替换为中科大 (USTC) 官方镜像源
+sed -i 's/mirrors.cloud.tencent.com\/lede/mirrors.ustc.edu.cn\/openwrt/g' package/lean/default-settings/files/zzz-default-settings
+
+
 # =========================================================
 # 2. 修改默认 IP 为 10.0.0.2
 # =========================================================

@@ -114,9 +114,9 @@ jobs:
         
         # 内核参数
         KERNEL_REPO_URL: breakings/OpenWrt
+        KERNEL_TAGS: kernel_stable
         KERNEL_VERSION_NAME: 5.15.148
         KERNEL_AUTO_LATEST: false
-        
         PACKAGE_SOC: s905d
         WHOAMI: fightroad
         SW_FLOWOFFLOAD: 1

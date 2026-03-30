@@ -98,6 +98,13 @@ jobs:
         time make -j$(nproc) || time make -j1 V=s
         echo "compile_status=success" >> $GITHUB_ENV
 
+    - name: Fail-safe Debug - Find RootFS
+      if: env.compile_status == 'success'
+      run: |
+        echo ">> 正在全盘搜索生成的底包文件..."
+        find openwrt/bin/targets/ -name "*rootfs.tar.gz"
+        echo ">> 搜索结束。"
+
     - name: Package OpenWrt Firmware
       if: env.compile_status == 'success' && !cancelled()
       uses: unifreq/openwrt_packit@master
